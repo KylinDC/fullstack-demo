@@ -1,0 +1,23 @@
+{
+  "name": "fullstack-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fullstack monorepo with React frontend and Hono.js backend",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./apps/*\" build",
+    "test": "pnpm --filter \"./apps/*\" test",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.6.3"
+  }
+}
