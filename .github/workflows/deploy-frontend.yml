@@ -63,6 +63,7 @@ jobs:
         run: pnpm --filter frontend build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_BASE_PATH: /fullstack-demo
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
