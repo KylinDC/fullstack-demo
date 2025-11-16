@@ -1,5 +1,5 @@
-import * as React from 'react';
 import { cn } from '@/lib/utils';
+import * as React from 'react';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -28,9 +28,9 @@ const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HT
 );
 CardTitle.displayName = 'CardTitle';
 
-const CardContent = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, ...props }, ref) => <div ref={ref} className={cn('p-6 pt-0', className)} {...props} />
-);
+const CardContent = React.forwardRef<HTMLDivElement, CardProps>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn('p-6 pt-0', className)} {...props} />
+));
 CardContent.displayName = 'CardContent';
 
 export { Card, CardHeader, CardTitle, CardContent };

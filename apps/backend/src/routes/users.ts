@@ -1,7 +1,7 @@
-import { Hono } from 'hono';
-import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { Hono } from 'hono';
 
 const usersRoute = new Hono();
 

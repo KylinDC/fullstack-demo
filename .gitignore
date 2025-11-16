@@ -71,10 +71,12 @@ junit.xml
 drizzle/
 
 # Docker
-*.log
 .docker/
 
 # Misc
 .turbo
 .vercel
 .netlify
+
+# Conductor (Claude Code cache)
+.conductor/
