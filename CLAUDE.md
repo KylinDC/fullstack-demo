@@ -245,8 +245,9 @@ docker-compose exec backend pnpm db:studio
   2. Setup pnpm and install dependencies
   3. Run tests
   4. Build production bundle
-  5. Deploy static files to hosting platform (Vercel/Netlify/S3)
+  5. Deploy to GitHub Pages automatically
 - Environment variables injected from GitHub Secrets
+- Requires GitHub Pages to be enabled in repository settings
 
 **Backend Deployment (`deploy-backend.yml`)**
 - Triggered on push to main (path: `apps/backend/**`)
@@ -260,7 +261,7 @@ docker-compose exec backend pnpm db:studio
 - Secrets: DATABASE_URL, registry credentials, deployment tokens
 
 ### Deployment Strategy
-- Frontend: Static hosting with CDN
+- Frontend: GitHub Pages (automatically deployed via Actions)
 - Backend: Containerized deployment with auto-scaling
 - Database: Managed PostgreSQL service (AWS RDS/Supabase/Neon)
 - Zero-downtime deployments with health checks
