@@ -1,43 +1,44 @@
-# Development docker-compose with hot reload
+# Development docker-compose with hot reload and SQLite
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: fullstack-demo-postgres-dev
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: fullstack_demo
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     image: node:22-alpine
     container_name: fullstack-demo-backend-dev
     working_dir: /app/apps/backend
-    command: sh -c "corepack enable && corepack prepare pnpm@9.0.0 --activate && pnpm install && pnpm dev"
+    command: sh -c "corepack enable && corepack prepare pnpm@9.0.0 --activate && pnpm install && pnpm dev:node"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/fullstack_demo
-      PORT: 3000
       NODE_ENV: development
+      PORT: 3000
     ports:
       - '3000:3000'
-    depends_on:
-      postgres:
-        condition: service_healthy
+    volumes:
+      # Mount entire workspace for hot reload
+      - ./:/app
+      # Persist SQLite database
+      - sqlite_data_dev:/app/apps/backend/.wrangler/state/v3/d1/miniflare-D1DatabaseObject
+      # Exclude node_modules to avoid conflicts
+      - /app/node_modules
+      - /app/apps/backend/node_modules
+      - /app/apps/frontend/node_modules
+
+  frontend:
+    image: node:22-alpine
+    container_name: fullstack-demo-frontend-dev
+    working_dir: /app/apps/frontend
+    command: sh -c "corepack enable && corepack prepare pnpm@9.0.0 --activate && pnpm install && pnpm dev --host"
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - '5173:5173'
     volumes:
       - ./:/app
       - /app/node_modules
       - /app/apps/backend/node_modules
+      - /app/apps/frontend/node_modules
+    depends_on:
+      - backend
 
 volumes:
-  postgres_data_dev:
+  sqlite_data_dev:
+

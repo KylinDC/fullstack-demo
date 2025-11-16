@@ -8,10 +8,10 @@ This is a fullstack TypeScript monorepo with separate frontend and backend appli
 
 **Tech Stack:**
 - Frontend: Vite + React + shadcn/ui + Tailwind CSS
-- Backend: Hono.js + Drizzle ORM + PostgreSQL
+- Backend: Hono.js + Drizzle ORM + Cloudflare D1 (SQLite)
 - Testing: Vitest for both frontend and backend
 - Package Manager: pnpm (using workspaces)
-- Containerization: Docker + Docker Compose
+- Deployment: Cloudflare Workers (backend) + GitHub Pages (frontend)
 - CI/CD: GitHub Actions
 - Use biomejs for lint and formatter
 
@@ -21,15 +21,14 @@ This is a fullstack TypeScript monorepo with separate frontend and backend appli
 /
 ├── apps/
 │   ├── frontend/          # Vite + React application
-│   │   └── Dockerfile     # Frontend production build
-│   └── backend/           # Hono.js API server
-│       └── Dockerfile     # Backend container
+│   └── backend/           # Hono.js + Cloudflare Workers API
+│       ├── wrangler.jsonc # Cloudflare Workers configuration
+│       └── drizzle/       # Database migrations
 ├── packages/              # Shared packages (if any)
 ├── .github/
 │   └── workflows/         # CI/CD pipelines
 │       ├── deploy-frontend.yml
 │       └── deploy-backend.yml
-├── docker-compose.yml     # Local development setup
 └── package.json           # Root workspace configuration
 ```
 
@@ -40,10 +39,18 @@ This is a fullstack TypeScript monorepo with separate frontend and backend appli
 # Install dependencies (from root)
 pnpm install
 
-# Setup database
+# Login to Cloudflare (first time only)
 cd apps/backend
-pnpm db:push        # Push schema to database
-pnpm db:studio      # Open Drizzle Studio
+pnpm cf:login
+
+# Create D1 database (first time only - for production)
+pnpm db:create      # Note the database_id and add it to wrangler.jsonc
+
+# Setup local database
+pnpm db:generate    # Generate migrations from schema
+pnpm db:push:local  # Push schema to local database
+pnpm db:seed        # Seed with sample data
+pnpm db:studio      # Open Drizzle Studio (optional)
 ```
 
 ### Frontend Development
@@ -60,11 +67,25 @@ pnpm lint           # Run ESLint
 ### Backend Development
 ```bash
 cd apps/backend
-pnpm dev            # Start dev server with hot reload
-pnpm build          # Build for production
-pnpm start          # Run production build
+# Local development options:
+pnpm dev            # Start Wrangler dev server (Cloudflare Workers local)
+pnpm dev:node       # Start Node.js dev server (faster for testing)
+
+# Deployment
+pnpm build          # Build TypeScript
+pnpm deploy         # Deploy to Cloudflare Workers (production)
+pnpm deploy:staging # Deploy to staging environment
+
+# Testing
 pnpm test           # Run tests
 pnpm test:ui        # Run tests with UI
+
+# Database operations
+pnpm db:generate    # Generate migrations from schema changes
+pnpm db:push:local  # Push schema to local database
+pnpm db:seed        # Seed local database
+pnpm db:migrate:remote  # Apply migrations to production D1 database
+pnpm db:studio      # Open Drizzle Studio
 ```
 
 ### Running Tests
@@ -81,36 +102,38 @@ cd apps/frontend  # or apps/backend
 pnpm test path/to/test.test.ts
 ```
 
-### Docker Commands
+## Docker Setup (Optional)
+
+Docker support is available for local containerized development with SQLite. This is optional - the recommended development approach is using `pnpm dev:node` locally or deploying to Cloudflare Workers.
+
+### Quick Start with Docker
 
 ```bash
-# Start all services (backend + postgres) for local development
-docker-compose up
-
-# Start in detached mode
-docker-compose up -d
-
-# Stop all services
-docker-compose down
-
-# Rebuild containers after code changes
+# Production mode
 docker-compose up --build
 
-# View logs
-docker-compose logs -f backend
-docker-compose logs -f postgres
-
-# Run backend tests in Docker
-docker-compose run backend pnpm test
-
-# Build backend image for production
-cd apps/backend
-docker build -t backend:latest .
-
-# Build frontend image for production
-cd apps/frontend
-docker build -t frontend:latest .
+# Development mode (with hot reload)
+docker-compose -f docker-compose.dev.yml up
 ```
+
+### Key Features
+- **SQLite database** - No separate database container needed
+- **Volume persistence** - Database stored in Docker volume
+- **Hot reload** - Development mode supports live code updates
+- **Automatic initialization** - Database schema and seed data created on first run
+
+### Important Notes
+- Docker uses SQLite (same as local dev and Cloudflare D1)
+- Database is automatically initialized via `docker-entrypoint.sh`
+- For detailed Docker documentation, see [DOCKER.md](../DOCKER.md)
+- For production deployments, **Cloudflare Workers is recommended** over Docker
+
+### When to Use Docker
+- ✅ Consistent development environment across team
+- ✅ Testing production-like build locally
+- ✅ Self-hosted deployment scenarios
+- ❌ Not needed for Cloudflare Workers deployment
+- ❌ Slower than native development
 
 ## Architecture Notes
 
@@ -122,17 +145,23 @@ docker build -t frontend:latest .
 - API calls should be organized in a dedicated services/api layer
 
 ### Backend Architecture
-- Hono.js provides the HTTP routing layer
+- Hono.js provides the HTTP routing layer (compatible with both Cloudflare Workers and Node.js)
 - Drizzle ORM handles database interactions with type-safe queries
+- Cloudflare D1 for production (SQLite-based serverless database)
+- Local development uses better-sqlite3 with the same schema
 - Database schema defined in Drizzle schema files (typically `schema.ts`)
 - API routes should be organized by domain/resource
 - Middleware stack: CORS, logging, error handling
+- Dual runtime support: Cloudflare Workers for production, Node.js for local dev
 
 ### Database Workflow
-- Schema changes: Update Drizzle schema files
-- Generate migrations: `pnpm db:generate`
-- Apply migrations: `pnpm db:push` or `pnpm db:migrate`
+- Schema changes: Update Drizzle schema files (using SQLite syntax)
+- Generate migrations: `pnpm db:generate` (creates SQL in drizzle/ folder)
+- Local development: `pnpm db:push:local` (push schema directly to local SQLite)
+- Production: `pnpm db:migrate:remote` (apply migrations to D1)
+- Seed data: `pnpm db:seed` (local only)
 - Schema is the source of truth for TypeScript types
+- Local and production use the same schema (SQLite-compatible)
 
 ### TypeScript Configuration
 - Strict mode enabled across all workspaces
@@ -149,26 +178,22 @@ docker build -t frontend:latest .
 
 ### Frontend (.env)
 ```
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:8787  # Wrangler dev server
+# or
+VITE_API_URL=https://your-worker.workers.dev  # Production
 ```
 
-### Backend (.env)
+### Backend (Local Development)
 ```
-# Local development
-DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-PORT=3000
 NODE_ENV=development
-
-# Docker development (when using docker-compose)
-DATABASE_URL=postgresql://user:password@postgres:5432/dbname
+PORT=3000  # Only used for dev:node
 ```
 
-### Docker (.env or docker-compose.yml)
-```
-POSTGRES_USER=user
-POSTGRES_PASSWORD=password
-POSTGRES_DB=dbname
-```
+### Backend (Production - Cloudflare Workers)
+Environment variables are configured in `wrangler.jsonc`:
+- D1 database bindings
+- Environment-specific variables
+- Secrets managed via `wrangler secret put`
 
 ## Key Dependencies
 
@@ -180,10 +205,12 @@ POSTGRES_DB=dbname
 - `vitest`, `@testing-library/react` - Testing
 
 ### Backend
-- `hono` - Web framework
-- `drizzle-orm` - ORM
-- `postgres` or `pg` - PostgreSQL client
-- `drizzle-kit` - CLI for migrations
+- `hono` - Web framework (works in Workers and Node.js)
+- `drizzle-orm` - ORM with D1 and SQLite support
+- `@cloudflare/workers-types` - TypeScript types for Workers
+- `wrangler` - Cloudflare Workers CLI
+- `better-sqlite3` - Local SQLite database for development
+- `drizzle-kit` - CLI for migrations and schema management
 - `vitest` - Testing
 
 ## Common Patterns
@@ -202,37 +229,46 @@ POSTGRES_DB=dbname
 5. Write component tests
 
 ### Database Schema Changes
-1. Modify schema in Drizzle schema files
-2. Run `pnpm db:generate` to create migration
-3. Review generated SQL
-4. Run `pnpm db:push` or `pnpm db:migrate`
-5. Update TypeScript types will auto-sync from schema
+1. Modify schema in Drizzle schema files (`src/db/schema.ts`)
+2. Run `pnpm db:generate` to create migration SQL
+3. Review generated SQL in `drizzle/` folder
+4. For local: `pnpm db:push:local` to apply to local database
+5. For production: `pnpm db:migrate:remote` to apply to D1
+6. TypeScript types auto-sync from schema
 
-## Docker Architecture
+## Cloudflare Workers Architecture
 
-### Backend Dockerfile
-- Multi-stage build for optimized production image
-- Stage 1: Build TypeScript code
-- Stage 2: Production runtime with only necessary files
-- Uses Node.js Alpine for smaller image size
-- Runs as non-root user for security
+### Dual Runtime Support
+The backend is designed to run in both environments:
+- **Cloudflare Workers** (production): Serverless, edge-deployed, uses D1 binding
+- **Node.js** (local dev): Traditional server, uses better-sqlite3
 
-### Docker Compose Setup
-- PostgreSQL service with persistent volume
-- Backend service linked to PostgreSQL
-- Hot reload enabled for development (volume mounts)
-- Network isolation between services
-- Health checks for database readiness
+### How It Works
+1. **Entry Point** (`src/index.ts`):
+   - Exports Hono app for Workers
+   - Conditionally starts Node.js server for local dev
 
-### Database Migrations in Docker
-When running database migrations in Docker:
-```bash
-# Apply migrations
-docker-compose exec backend pnpm db:push
+2. **Database Layer** (`src/db/index.ts`):
+   - `createDb()`: Creates DB instance with D1 binding (Workers)
+   - `createLocalDb()`: Creates DB instance with SQLite (Node.js)
+   - Routes detect runtime and use appropriate instance
 
-# Open Drizzle Studio (needs port 4983 exposed)
-docker-compose exec backend pnpm db:studio
-```
+3. **Configuration** (`wrangler.jsonc`):
+   - Defines D1 database bindings
+   - Sets compatibility date and Node.js compatibility
+   - Configures staging/production environments
+
+### Local Development Flow
+1. Start dev server: `pnpm dev:node` or `pnpm dev`
+2. Database stored in: `.wrangler/state/v3/d1/miniflare-D1DatabaseObject/db.sqlite`
+3. Schema changes: Update schema → Generate → Push local
+4. Seed data: `pnpm db:seed`
+
+### Production Deployment Flow
+1. Update `wrangler.jsonc` with production D1 `database_id`
+2. Run migrations: `pnpm db:migrate:remote`
+3. Deploy: `pnpm deploy`
+4. Workers automatically use D1 binding from environment
 
 ## CI/CD Pipeline
 
@@ -253,19 +289,21 @@ docker-compose exec backend pnpm db:studio
 - Triggered on push to main (path: `apps/backend/**`)
 - Steps:
   1. Checkout code
-  2. Run tests
-  3. Build Docker image
-  4. Push to container registry (Docker Hub/AWS ECR/GCP GCR)
-  5. Deploy to hosting platform (AWS ECS/GCP Cloud Run/Railway)
-  6. Run database migrations
-- Secrets: DATABASE_URL, registry credentials, deployment tokens
+  2. Setup pnpm and install dependencies
+  3. Run tests
+  4. Build TypeScript
+  5. Deploy to Cloudflare Workers using Wrangler
+  6. Apply D1 migrations to production database
+- Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+- Environment variables from `wrangler.jsonc`
 
 ### Deployment Strategy
-- Frontend: GitHub Pages (automatically deployed via Actions)
-- Backend: Containerized deployment with auto-scaling
-- Database: Managed PostgreSQL service (AWS RDS/Supabase/Neon)
-- Zero-downtime deployments with health checks
-- Rollback capability via container versioning
+- Frontend: GitHub Pages (static site, automatically deployed via Actions)
+- Backend: Cloudflare Workers (serverless, edge-deployed globally)
+- Database: Cloudflare D1 (serverless SQLite, managed by Cloudflare)
+- Zero-downtime deployments with instant rollback capability
+- Global edge network for low-latency responses
+- Automatic scaling with no infrastructure management
 
 ### Pre-deployment Checks
 Both pipelines include:

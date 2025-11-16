@@ -5,7 +5,22 @@
       "Bash(tree:*)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm format:*)",
-      "Bash(pnpm biome check:*)"
+      "Bash(pnpm biome check:*)",
+      "WebSearch",
+      "Bash(test:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm db:generate:*)",
+      "Bash(pnpm db:migrate:local:*)",
+      "Bash(pnpm db:push:local:*)",
+      "Bash(pnpm db:seed:*)",
+      "Bash(timeout 10 pnpm dev:node:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(npx wrangler:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(timeout 5 pnpm dev:*)",
+      "Bash(pnpm db:migrate:remote:*)"
     ],
     "deny": [],
     "ask": []

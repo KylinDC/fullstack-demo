@@ -1,11 +1,13 @@
 import 'dotenv/config';
 import { users } from '@/db/schema';
-import { db } from '../db';
+import { getDb } from '../db';
 
 async function seed() {
   console.log('🌱 Seeding database...');
 
   try {
+    const db = await getDb();
+
     // Insert sample users
     await db.insert(users).values([
       {
@@ -32,3 +34,4 @@ async function seed() {
 }
 
 seed();
+

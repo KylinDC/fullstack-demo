@@ -1,11 +1,11 @@
-import 'dotenv/config';
 import usersRoute from '@/routes/users';
-import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import type { Env } from '@/db';
 
-const app = new Hono();
+// Create Hono app with environment type for Cloudflare Workers
+const app = new Hono<{ Bindings: Env }>();
 
 // Middleware
 app.use('*', logger());
@@ -30,11 +30,21 @@ app.onError((err, c) => {
   return c.json({ error: 'Internal Server Error' }, 500);
 });
 
-const port = Number.parseInt(process.env.PORT || '3000');
+// Export for Cloudflare Workers
+export default app;
 
-serve({
-  fetch: app.fetch,
-  port,
-});
+// Start Node.js server only when running with tsx/node directly (not in Workers runtime)
+// Check for __filename which only exists in Node.js, not in Workers
+if (typeof __filename !== 'undefined') {
+  // Dynamic import to avoid bundling in Workers
+  import('dotenv/config');
+  import('@hono/node-server').then(({ serve }) => {
+    const port = Number.parseInt(process.env.PORT || '3000');
+    serve({
+      fetch: app.fetch,
+      port,
+    });
+    console.log(`🚀 Server is running on http://localhost:${port}`);
+  });
+}
 
-console.log(`🚀 Server is running on http://localhost:${port}`);

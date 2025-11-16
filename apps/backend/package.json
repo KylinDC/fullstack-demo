@@ -4,30 +4,37 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "wrangler dev --local --persist-to .wrangler/state",
+    "dev:node": "NODE_ENV=development tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:watch": "vitest",
+    "db:create": "wrangler d1 create fullstack-demo",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
+    "db:push:local": "drizzle-kit push --config drizzle.local.config.ts",
+    "db:migrate:remote": "wrangler d1 migrations apply fullstack-demo --remote",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "NODE_ENV=development tsx src/db/seed.ts",
+    "cf:login": "wrangler login"
   },
   "dependencies": {
-    "hono": "^4.6.11",
-    "@hono/node-server": "^1.13.7",
+    "dotenv": "^17.2.3",
     "drizzle-orm": "^0.36.4",
-    "postgres": "^3.4.5",
-    "dotenv": "^16.4.7"
+    "hono": "^4.6.11"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250110.0",
+    "@hono/node-server": "^1.13.7",
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.1",
+    "better-sqlite3": "^11.8.1",
     "drizzle-kit": "^0.29.1",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wrangler": "^4.47.0"
   }
 }

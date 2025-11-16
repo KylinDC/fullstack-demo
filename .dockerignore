@@ -13,6 +13,9 @@ out
 .env.local
 .env.*.local
 
+# Database (handled by volume mount)
+.wrangler
+
 # Testing
 coverage
 
@@ -48,3 +51,4 @@ Thumbs.db
 Dockerfile
 docker-compose*.yml
 .dockerignore
+

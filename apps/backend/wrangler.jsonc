@@ -1,0 +1,35 @@
+{
+  "$schema": "../../node_modules/.pnpm/wrangler@4.47.0_@cloudflare+workers-types@4.20251115.0/node_modules/wrangler/config-schema.json",
+  "name": "fullstack-demo-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-16",
+  // Node.js compatibility for some npm packages
+  "compatibility_flags": ["nodejs_compat"],
+  // D1 Database bindings
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fullstack-demo",
+      "database_id": "1e040894-adda-4c27-b23a-8688ee88f8e7",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  // Environment variables (non-sensitive)
+  "vars": {
+    "ENVIRONMENT": "production"
+  },
+  // Staging environment configuration (optional)
+  "env": {
+    "staging": {
+      "name": "fullstack-demo-backend-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "fullstack-demo-staging",
+          "database_id": "",
+          "migrations_dir": "drizzle"
+        }
+      ]
+    }
+  }
+}
